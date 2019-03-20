@@ -4,3 +4,4 @@
 .settings
 
 build
+src/gromacs/.DS_Store
