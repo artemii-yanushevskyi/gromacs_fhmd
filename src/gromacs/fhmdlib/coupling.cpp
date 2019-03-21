@@ -9,6 +9,7 @@ void fhmd_update_MD_in_FH(rvec x[], rvec v[], real mass[], rvec f[], int N_atoms
     dvec       xn;
     int        ind;
     double     S = fh->S;
+    double     beta_coef;
 
     /* Reset statistics */
     for(int i = 0; i < fh->Ntot; i++)
@@ -148,7 +149,12 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
 //                      arr[C].beta_term[d] = fh->beta*arr[C].mn_prime[d];
                     arr[C].delta_ro = arr[C].ro_fh - arr[C].ro_md;                                          // Layer n may work better than n+1/2
                     for(int d = 0; d < DIM; d++)
+                    {
+                        beta_coef = fh->beta;
+                        // beta_coef should be calculated based on the last formula at eq.pdf file.
                         arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);    // Layer n may work better than n+1/2
+                    }
+
 
                     if(fh->grid.md[C] == FH_zone) arr[C].delta_ro = 0;
                 }
@@ -199,4 +205,3 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
         }
     }
 }
-

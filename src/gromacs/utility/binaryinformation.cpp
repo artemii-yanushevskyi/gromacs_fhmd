@@ -156,7 +156,6 @@ void printCopyright(FILE *fp)
 #else
 #define NLICENSE (int)asize(LicenseText)
 #endif
-
     printCentered(fp, 78, "GROMACS is written by:");
     fprintf(fp, "\n");
     for (int i = 0; i < NCONTRIBUTORS; )
@@ -178,6 +177,8 @@ void printCopyright(FILE *fp)
     fprintf(fp, "\n");
     printCentered(fp, 78, "Mark Abraham, Berk Hess, Erik Lindahl, and David van der Spoel");
     fprintf(fp, "\n\n");
+    printCentered(fp, 78, "Modifications by Artemii Yanushevskyi.\n");
+    fprintf(fp, "\n");
     for (int i = 0; i < NCR; ++i)
     {
         fprintf(fp, "%s\n", CopyrightText[i]);
