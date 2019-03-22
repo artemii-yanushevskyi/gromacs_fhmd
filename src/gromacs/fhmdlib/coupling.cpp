@@ -152,7 +152,22 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
                     {
                         beta_coef = fh->beta;
                         // beta_coef should be calculated based on the last formula at eq.pdf file.
+                        // the objective is to calculate beta using md and fhmd parameters.
+                        // many of the components have already been calculated and used in equations
+
+
+                        // beta_term will be calculated here,
                         arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);    // Layer n may work better than n+1/2
+
+                        /* what is C in arr[C]?
+                        It is defined in the file macros src/gromacs/fhmdlib/macro.h.
+                        easy to infer that it outputs the index of a point on a grid.
+
+                        We calculate all the HD parameters on the points of the grid. (arr is the array of grid points)
+                        After, we approximately calculate the parameters at the atom coordinates.
+
+                        TODO: variable in formulas <-> variable here.
+                        */
                     }
 
 
