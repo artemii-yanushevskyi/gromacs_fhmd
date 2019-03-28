@@ -7,9 +7,14 @@
 #define NY      fh->N[1]                /* Number of FH cells along Y axis */
 #define NZ      fh->N[2]                /* Number of FH cells along Z axis */
 
+// i j k is coordinates of a cell
+// each cell has its Number
+// i j k -> n of a cell (for arr[n])
+// I(ind, fh->N) is n
+
 #define C       I(ind, fh->N)           /* Point [i][j][k] */
 #define L       I(ind, fh->N)           /* Point [i][j][k] */
-#define R       I3d(i,j,k,+1,d,fh->N)   /* Point [i+1][j][k] */
+#define R       I3d(i,j,k,+1,d,fh->N)   /* Point [i+1][j][k], here d is the dimension */
 #define CL      I3d(i,j,k,-1,d,fh->N)   /* Point [i-1][j][k] */
 #define CR      I3d(i,j,k,+1,d,fh->N)   /* Point [i+1][j][k] */
 #define LL      I3d(i,j,k,-1,d,fh->N)   /* Point [i-1][j][k] */

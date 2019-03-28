@@ -5,36 +5,41 @@
 
 void fhmd_update_MD_in_FH(rvec x[], rvec v[], real mass[], rvec f[], int N_atoms, FHMD *fh)
 {
+    /*
+        this function is called each md step (from md.cpp file)
+    */
     FH_arrays *arr = fh->arr;
     dvec       xn;
     int        ind;
     double     S = fh->S;
-    double     beta_coef;
+
+    // fh->Ntot is the number of all cells
+    // arr is the array of cells, each cell has its properties
 
     /* Reset statistics */
     for(int i = 0; i < fh->Ntot; i++)
     {
-        arr[i].ro_md   = 0;
-        arr[i].ro_md_s = 0;
+        arr[i].ro_md   = 0; // is md density in cell i
+        arr[i].ro_md_s = 0; // (1-s) * ro_md
 
         for(int d = 0; d < DIM; d++)
         {
-            arr[i].uro_md[d]    = 0;
-            arr[i].uro_md_s[d]  = 0;
+            arr[i].uro_md[d]    = 0; // calculate uro_md for each direction (3) 0:x 1:y 2:z
+            arr[i].uro_md_s[d]  = 0; // (1-s) * ro_md
         }
     }
 
     /* Collect statistics */
     for(int n = 0; n < N_atoms; n++)
     {
-        PBC(xn, x[n], fh->box);
+        PBC(xn, x[n], fh->box); // periodic function for each atom
 
         for(int d = 0; d < DIM; d++)
         {
-            fh->indv[n][d] = (int)(xn[d]/fh->box[d]*(double)(fh->N_md[d])) + fh->N_shift[d];
+            fh->indv[n][d] = (int)(xn[d]/fh->box[d]*(double)(fh->N_md[d])) + fh->N_shift[d]; // outputs (i, j, k) of a cell for an atom n
         }
 
-        ind = I(fh->indv[n], fh->N);
+        ind = I(fh->indv[n], fh->N); // index of a cell for an atom n
 
         if(ind < 0 || ind >= fh->Ntot)      // This should never happen... only if the coordinates are NaN.
         {
@@ -42,12 +47,14 @@ void fhmd_update_MD_in_FH(rvec x[], rvec v[], real mass[], rvec f[], int N_atoms
             exit(21);
         }
 
-        fh->ind[n] = ind;
+        fh->ind[n] = ind; // atom n belongs to a cell with index ind
 
         if(fh->S_function == moving_sphere)
             S = fhmd_Sxyz_r(x[n], fh->protein_com, fh);     // MD/FH sphere follows protein
         else if(fh->S_function == fixed_sphere)
             S = fhmd_Sxyz_r(x[n], fh->box05, fh);           // Fixed MD/FH sphere
+
+        /* calculate s for each atom */
 
         arr[ind].ro_md   += mass[n];
         arr[ind].ro_md_s += (1 - S)*mass[n];
@@ -57,15 +64,17 @@ void fhmd_update_MD_in_FH(rvec x[], rvec v[], real mass[], rvec f[], int N_atoms
             arr[ind].uro_md[d]   += v[n][d]*mass[n];
             arr[ind].uro_md_s[d] += (1 - S)*v[n][d]*mass[n];
         }
+
+        // here we calculate beta_p for each particle
     }
 
     /* Update statistics */
     for(int i = 0; i < fh->Ntot; i++)
     {
-        arr[i].ro_md   *= fh->grid.ivol[i];
+        arr[i].ro_md   *= fh->grid.ivol[i]; // ivol is 1/vol
         arr[i].ro_md_s *= fh->grid.ivol[i];
 
-        for(int d = 0; d < DIM; d++)
+        for(int d = 0; d < DIM; d++) // for each direction
         {
             arr[i].uro_md[d]   *= fh->grid.ivol[i];
             arr[i].uro_md_s[d] *= fh->grid.ivol[i];
@@ -117,6 +126,9 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
 
     ivec ind;
     dvec alpha_term;
+    // define arr[C].beta_coef
+
+
 
     for(int k = fh->N_shift[2]; k < (fh->N_md[2] + fh->N_shift[2]); k++)
     {
@@ -124,40 +136,36 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
         {
             for(int i = fh->N_shift[0]; i < (fh->N_md[0] + fh->N_shift[0]); i++)
             {
-                ASSIGN_IND(ind, i, j, k);
+                // for each cell (i, j, k)
+
+                ASSIGN_IND(ind, i, j, k); // (i, j, k) -> ind
 
                 if(arr[C].ro_md <= 0) {
                     printf(MAKE_RED "\nFHMD: ERROR: Zero or NaN MD density in the cell %d-%d-%d (ro_md = %g)\n" RESET_COLOR "\n", i, j, k, arr[C].ro_md);
                     exit(22);
                 }
-
+                // C = ind
                 arr[C].inv_ro = 1.0/arr[C].ro_md;
+
+                // arr[C].beta = ...
 
                 for(int d = 0; d < DIM; d++)
                     arr[C].u_md[d] = arr[C].uro_md[d]*arr[C].inv_ro;
 
+
                 if(fh->scheme == One_Way)
                 {
                     arr[C].delta_ro = arr[C].ro_fh - arr[C].ro_md;
-                    for(int d = 0; d < DIM; d++)
-                        arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);
-                }
-                else if(fh->scheme == Two_Way)
-                {
-//                  arr[C].delta_ro = arr[C].ron_prime;
-//                  for(int d = 0; d < DIM; d++)
-//                      arr[C].beta_term[d] = fh->beta*arr[C].mn_prime[d];
-                    arr[C].delta_ro = arr[C].ro_fh - arr[C].ro_md;                                          // Layer n may work better than n+1/2
+
                     for(int d = 0; d < DIM; d++)
                     {
-                        beta_coef = fh->beta;
                         // beta_coef should be calculated based on the last formula at eq.pdf file.
                         // the objective is to calculate beta using md and fhmd parameters.
                         // many of the components have already been calculated and used in equations
 
+                        arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);
 
-                        // beta_term will be calculated here,
-                        arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);    // Layer n may work better than n+1/2
+                        // remove fh->beta...
 
                         /* what is C in arr[C]?
                         It is defined in the file macros src/gromacs/fhmdlib/macro.h.
@@ -169,7 +177,19 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
                         TODO: variable in formulas <-> variable here.
                         */
                     }
+                }
+                else if(fh->scheme == Two_Way)
+                {
+//                  arr[C].delta_ro = arr[C].ron_prime;
+//                  for(int d = 0; d < DIM; d++)
+//                      arr[C].beta_term[d] = fh->beta*arr[C].mn_prime[d];
+                    arr[C].delta_ro = arr[C].ro_fh - arr[C].ro_md; // for a centre of a cell
+                                                             // Layer n may work better than n+1/2
+                    for(int d = 0; d < DIM; d++)
+                    {
+                        arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);    // Layer n may work better than n+1/2
 
+                    }
 
                     if(fh->grid.md[C] == FH_zone) arr[C].delta_ro = 0;
                 }
@@ -187,10 +207,17 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
 
                 for(int d = 0; d < DIM; d++)
                 {
+                    // grid.h[CLm] is the size of a cell to the left in d direction
+                    // fh->grid.h[Cm][d] size of the current cell
+                    // fh->grid.h[CRm][d] right
+                    // (0.5*(fh->grid.h[CLm][d] + 2.0*fh->grid.h[Cm][d] + fh->grid.h[CRm][d])) distance between center of the left cell and right cell
+
                     arr[Cm].grad_ro[d] = fh->alpha*(arr[CRm].delta_ro - arr[CLm].delta_ro)/(0.5*(fh->grid.h[CLm][d] + 2.0*fh->grid.h[Cm][d] + fh->grid.h[CRm][d]));
 
                     for(int du = 0; du < DIM; du++)
-                        arr[Cm].alpha_u_grad[du][d] = arr[Cm].grad_ro[d]*arr[Cm].S*(1 - arr[Cm].S)*arr[Cm].u_md[du];    // TODO: Fast but rough estimation!
+                        arr[Cm].alpha_u_grad[du][d] = arr[Cm].grad_ro[d]*arr[Cm].S*(1 - arr[Cm].S)*arr[Cm].u_md[du];
+                        // this is a gradient of velocity
+                        // TODO: Fast but rough estimation! we have 5*5*5=125 cells
                 }
             }
         }
@@ -219,4 +246,6 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
             }
         }
     }
+
+
 }
