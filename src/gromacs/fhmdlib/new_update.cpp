@@ -37,6 +37,122 @@ void fhmd_do_update_md(int start, int nrend,
     dvec         f_fh, u_fh, alpha_term, beta_term, grad_ro;
     const double g_eps = 1e-10;
 
+    double beta[];
+
+    double first_top[DIM];
+    double first_top_v;
+
+    double second_top[DIM];
+    double second_top_v;
+
+    double first_bottom[DIM];
+    double first_bottom_v;
+
+    double second_bottom[DIM];
+    double second_bottom_v;
+
+    if(1)
+    {
+        // beta is not constant
+        // we have n - is particle
+        // what is lg*v[n][d]?
+
+        for (n = start; n < nrend; n++)
+        {
+            w_dt     = invmass[n]*dt;
+            ind      = fh->ind[n];
+            invro_dt = arr[ind].inv_ro*dt;
+
+            trilinear_find_neighbours(x[n], n, xi, nbr, fh);
+
+            if(fh->scheme == Two_Way)
+                trilinear_interpolation(f_fh,   xi, INTERPOLATE(f_fh));
+            else
+                clear_dvec(f_fh);
+            trilinear_interpolation(u_fh,       xi, INTERPOLATE(u_fh));
+            trilinear_interpolation(alpha_term, xi, INTERPOLATE(alpha_term));
+            trilinear_interpolation(beta_term,  xi, INTERPOLATE(beta_term));
+            trilinear_interpolation(grad_ro,    xi, INTERPOLATE(grad_ro));
+
+            if(fh->S_function == moving_sphere)
+                S = fhmd_Sxyz_r(x[n], fh->protein_com, fh);     // MD/FH sphere follows protein
+            else if(fh->S_function == fixed_sphere)
+                S = fhmd_Sxyz_r(x[n], fh->box05, fh);           // Fixed MD/FH sphere
+
+            // first top
+            for(p = start; p < nrend; p++)
+            {
+                for (d = 0; d < DIM; d++)
+                {
+                    ro_tilde =
+                    ro_md =
+                    ro =
+                    F_md[d] =
+                    u_tilde[d] = (S*u_fh[d]*ro + (1-S)ro_md*v[p][d])/ro_tilde;
+                    first_top = - F_md[d] * (S*(u_tilde[d] - v[p][d]) + alpha*beta_term[d]);
+                }
+                first_top_v += SUM(first_top);
+            }
+
+            // second top
+            for(p = start; p < nrend; p++)
+            {
+                for (d = 0; d < DIM; d++)
+                {
+                    p[d] =
+                    m =
+                    F_md[d] =
+                    second_top = p[d]/m * (S*F_md[d] - m * alpha_term[d]);
+                }
+                second_top_v += SUM(second_top);
+            }
+
+            // first bottom
+            for(p = start; p < nrend; p++)
+            {
+                for (d = 0; d < DIM; d++)
+                {
+                    ro =
+                    m =
+                    ro_md =
+                    first_bottom = (p[d]*p[d])/(m*ro_md);
+                }
+                first_bottom_v += SUM(first_bottom);
+            }
+
+            // second bottom
+            for(p = start; p < nrend; p++)
+            {
+                for (d = 0; d < DIM; d++)
+                {
+                    ro_tilde =
+                    ro_md =
+                    ro =
+                    p[d] =
+                    u_tilde[d] = (S*u_fh[d]*ro + (1-S)ro_md*v[p][d])/ro_tilde;
+
+                    sum_uro[d] = 0;
+                    for(int k = start, k < nrend; p++)
+                    {
+                        if (k == p) continue;
+                        sum_uro[d] += v[p][d]*ro;
+                    }
+
+                    pr_v[d] = u_tilde[d]*ro_tilde - sum_uro[d];
+
+                    second_bottom = - p[d]*pr_v[d]/ro_md;
+                }
+                second_bottom_v += SUM(second_bottom);
+            }
+
+            // final
+
+            beta[n] = (first_top_v + second_top_v)/(S*(1-S) * (first_bottom_v + second_bottom_v))
+
+
+        }
+    }
+
     if (bNH || bPR)
     {
         /* Update with coupling to extended ensembles, used for
@@ -117,6 +233,7 @@ void fhmd_do_update_md(int start, int nrend,
                      /* vn           = lg*v[n][d] + f[n][d]*w_dt; */
                      /* v[n][d]      = vn; */
                      /* xprime[n][d] = x[n][d] + vn*dt; */
+
 
                     if(fh->scheme == One_Way)
                     {

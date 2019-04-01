@@ -11,3 +11,12 @@ make
 make check
 sudo make install
 gmx
+
+# Compile and run
+
+
+make
+sudo make install
+/usr/local/gromacs/bin/gmx grompp
+/usr/local/gromacs/bin/gmx mdrun -ntomp 1
+vmd (New molecule -> confout.gro, traj_comp.xtc)
