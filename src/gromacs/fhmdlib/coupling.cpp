@@ -163,7 +163,8 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
                         // the objective is to calculate beta using md and fhmd parameters.
                         // many of the components have already been calculated and used in equations
 
-                        arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);
+                        // arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);
+                        arr[C].beta_term[d] = (arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);
 
                         // remove fh->beta...
 
