@@ -37,7 +37,7 @@ void fhmd_do_update_md(int start, int nrend,
     dvec         f_fh, u_fh, alpha_term, beta_term, grad_ro;
     const double g_eps = 1e-10;
 
-    printf("%d, %d\n", start, nrend);
+    printf("start %d, end %d\n", start, nrend);
 
     double beta[nrend - start];
 
@@ -59,6 +59,87 @@ void fhmd_do_update_md(int start, int nrend,
 
         // beta is not constant
         // we have n - is particle
+
+
+        for(int i = 0; i < fh->Ntot; i++)
+        {
+            arr[i].first_top =        0;
+            arr[i].second_top =       0;
+            arr[i].second_bottom =    0;
+        }
+
+
+        for (int n = start; n < nrend; n++)
+        {
+            ind = fh->ind[n]; // index of cell containing atom n
+
+            if(fh->S_function == moving_sphere)
+                S = fhmd_Sxyz_r(x[n], fh->protein_com, fh);     // MD/FH sphere follows protein
+            else if(fh->S_function == fixed_sphere)
+                S = fhmd_Sxyz_r(x[n], fh->box05, fh);           // Fixed MD/FH sphere
+
+            double ro_fh = arr[ind].ro_fh;
+            double ro_md = arr[ind].ro_md;
+            double ro_tilde = arr[ind].ro_fh;
+            double m = 1/invmass[n];
+
+            double ppm = arr[ind].ppm;
+
+            rvec F_md;
+            rvec mv; // momentum
+            rvec u_tilde;
+            dvec grad_ro_ss_ro_alpha;
+
+
+            for(d = 0; d < DIM; d++)
+            {
+                F_md[d] = f[n][d];
+                mv[d] = m*v[n][d]; // only v_md ?
+                u_tilde[d] = u_fh[d]; //  fh-velocity
+                grad_ro_ss_ro_alpha[d] = S*(1 - S)*arr[ind].grad_ro[d] * arr[ind].inv_ro;
+            }
+
+            // compute
+
+            // first top
+            for (d = 0; d < DIM; d++)
+            {
+                first_top[d] = - (1/ppm) * F_md[d] * (S*(u_tilde[d] - v[n][d]) + grad_ro_ss_ro_alpha[d]);
+            }
+
+            arr[ind].first_top += SUM(first_top);
+
+            // second top
+
+            for (d = 0; d < DIM; d++)
+            {
+                second_top[d] = - (1/ppm) * mv[d]/m * (S*F_md[d] - m * alpha_term[d] / ro_md);
+                // in mv what's v?
+            }
+
+            arr[ind].second_top += SUM(second_top);
+
+
+            double sum_uro_without_p[DIM];
+
+            rvec pr_v;
+
+            // second bottom
+            for (d = 0; d < DIM; d++)
+            {
+                sum_uro_without_p[d] = 0;
+                for(int k = start; k < nrend; k++)
+                {
+                    if ((k == n) || (ind == fh->ind[k])) continue;
+                    sum_uro_without_p[d] += v[k][d] * m * fh->grid.ivol[ind];
+                }
+
+                pr_v[d] = u_tilde[d]*ro_tilde - sum_uro_without_p[d];
+
+                second_bottom[d] = - 1/ppm * m*S*(1-S)*pr_v[d]/ro_md;
+            }
+            arr[ind].second_bottom += SUM(second_bottom);
+        }
 
         for (int n = start; n < nrend; n++)
         {
@@ -93,90 +174,105 @@ void fhmd_do_update_md(int start, int nrend,
             double ro_tilde = arr[ind].ro_fh;
             double m = 1/invmass[n];
 
+            double ppm = arr[ind].ppm;
+
             rvec F_md;
             rvec mv; // momentum
             rvec u_tilde;
+            dvec grad_ro_ss_ro_alpha;
 
 
             for(d = 0; d < DIM; d++)
             {
                 F_md[d] = f[n][d];
                 mv[d] = m*v[n][d];
-                u_tilde[d] = (S*u_fh[d]*ro_fh + (1-S)*ro_md*v[n][d])/ro_tilde; // mixture velocity
+                u_tilde[d] = u_fh[d]; //  fh-velocity
+                grad_ro_ss_ro_alpha[d] = S*(1 - S)*arr[ind].grad_ro[d] * arr[ind].inv_ro;
             }
 
 
 
-            // first top
-            for(int p = start; p < nrend; p++)
-            {
-                for (d = 0; d < DIM; d++)
-                {
-                    u_tilde[d] = (S*u_fh[d]*ro_fh + (1-S)*ro_md*v[p][d])/ro_tilde;
-                    first_top[d] = - F_md[d] * (S*(u_tilde[d] - v[p][d]) + alpha*beta_term[d]);
-                }
-                first_top_v += SUM(first_top);
-            }
-
-
-
-            // second top
-            for(int p = start; p < nrend; p++)
-            {
-                for (d = 0; d < DIM; d++)
-                {
-                    second_top[d] = mv[d]/m * (S*F_md[d] - m * alpha_term[d]);
-                }
-                second_top_v += SUM(second_top);
-            }
+            // // first top
+            // for(int p = start; p < nrend; p++)
+            // {
+            //     for (d = 0; d < DIM; d++)
+            //     {
+            //         u_tilde[d] = u_fh[d];
+            //         first_top[d] = - (1/ppm) * F_md[d] * (S*(u_tilde[d] - v[p][d]) + grad_ro_ss_ro_alpha[d]);
+            //     }
+            //     first_top_v += SUM(first_top);
+            // }
+            //
+            //
+            //
+            // // second top
+            // for(int p = start; p < nrend; p++)
+            // {
+            //     for (d = 0; d < DIM; d++)
+            //     {
+            //         second_top[d] = mv[d]/m * (S*F_md[d] - m * alpha_term[d]);
+            //     }
+            //     second_top_v += SUM(second_top);
+            // }
 
 
             // first bottom
-            for(int p = start; p < nrend; p++)
+            for (d = 0; d < DIM; d++)
             {
-                for (d = 0; d < DIM; d++)
-                {
-                    first_bottom[d] = (mv[d]*mv[d])/(m*ro_md);
-                }
-                first_bottom_v += SUM(first_bottom);
+                first_bottom[d] = S*(1 - S)*(m*fh->grid.ivol[ind])/ro_md; //
+                // ro_p is m_p/V
+                // Це те саме ро, що в їхніх формулах
+                // Просто виділене для однієї частинки
             }
 
-            double sum_uro_without_p[DIM];
+            first_bottom_v = SUM(first_bottom);
 
-            rvec pr_v;
+            //
+            // double sum_uro_without_p[DIM];
+            //
+            // rvec pr_v;
+            //
+            //
+            // // second bottom
+            // for(int p = start; p < nrend; p++)
+            // {
+            //     for (d = 0; d < DIM; d++)
+            //     {
+            //         sum_uro_without_p[d] = 0;
+            //         for(int k = start; k < nrend; k++)
+            //         {
+            //             if (k == p) continue;
+            //             sum_uro_without_p[d] += v[k][d]*ro_md;
+            //             // if (k%1000 == 0) printf("%d\n", k);
+            //
+            //         }
+            //         // printf("w");
+            //         pr_v[d] = u_tilde[d]*ro_tilde - sum_uro_without_p[d];
+            //
+            //         second_bottom[d] = -mv[d]*pr_v[d]/ro_md;
+            //     }
+            //     second_bottom_v += SUM(second_bottom);
+            //
+            // }
 
-
-            // second bottom
-            for(int p = start; p < nrend; p++)
-            {
-                for (d = 0; d < DIM; d++)
-                {
-                    sum_uro_without_p[d] = 0;
-                    for(int k = start; k < nrend; k++)
-                    {
-                        if (k == p) continue;
-                        sum_uro_without_p[d] += v[k][d]*ro_md;
-                        // if (k%1000 == 0) printf("%d\n", k);
-
-                    }
-                    // printf("w");
-                    pr_v[d] = u_tilde[d]*ro_tilde - sum_uro_without_p[d];
-
-                    second_bottom[d] = -mv[d]*pr_v[d]/ro_md;
-                }
-                second_bottom_v += SUM(second_bottom);
-
-            }
-
-            if(n % 100 == 0) printf("/%d/\n", n);
+            if(n % 10000 == 0) printf("%d ", n);
             // if(n > 8000 == 0) printf("/%d/", n);
 
             // final
 
-            beta[n-start] = (first_top_v + second_top_v)/(S*(1-S) * (first_bottom_v + second_bottom_v));
+            beta[n-start] = (arr[ind].first_top + arr[ind].second_top)/(first_bottom_v + arr[ind].second_bottom);
 
         }
     }
+
+    for(int i = 0; i < fh->Ntot; i++)
+    {
+        printf("\n%e\t", arr[i].first_top);
+        printf("%e\t", arr[i].second_top);
+        printf("%e\t", arr[i].second_bottom);
+        printf("%e\t", beta[i + 10000]);
+    }
+
 
 
     if (bNH || bPR)
