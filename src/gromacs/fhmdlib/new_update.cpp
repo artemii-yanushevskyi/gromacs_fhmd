@@ -41,7 +41,7 @@ void fhmd_do_update_md(int start, int nrend,
 
     double beta[nrend - start];
 
-    if(1)
+    if(0)
     {
         double alpha = fh->alpha;
 
@@ -360,7 +360,8 @@ void fhmd_do_update_md(int start, int nrend,
                     if(fh->scheme == One_Way)
                     {
                         // vn           = lg*v[n][d] + (1 - S)*f[n][d]*w_dt + (S*f_fh[d] + alpha_term[d] + S*(1 - S)*beta_term[d])*invro_dt; // *
-                        vn           = lg*v[n][d] + (1 - S)*f[n][d]*w_dt + (S*f_fh[d] + alpha_term[d] + beta[n-start]*S*(1 - S)*beta_term[d])*invro_dt; // *
+                        // vn           = lg*v[n][d] + (1 - S)*f[n][d]*w_dt + (S*f_fh[d] + alpha_term[d] + beta[n-start]*S*(1 - S)*beta_term[d])*invro_dt; // *
+                        vn           = lg*v[n][d] + (1 - S)*f[n][d]*w_dt + (S*f_fh[d] + alpha_term[d] + 1000*S*(1 - S)*beta_term[d])*invro_dt; // *
                         // beta_term we multiply by beta coef for each particle n (beta_term * beta_p)  beta[n]*...*ber
                         v[n][d]      = vn;
                         xprime[n][d] = x[n][d] + ((1 - S)*vn + S*u_fh[d])*dt + S*(1 - S)*grad_ro[d]*invro_dt;
