@@ -4,6 +4,7 @@
 .settings
 
 build
+debug
 *.DS_Store
 formula.aux
 formula.log
