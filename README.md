@@ -47,6 +47,14 @@ cmake .. -DGMX_BUILD_OWN_FFTW=ON -DREGRESSIONTEST_DOWNLOAD=ON -DCMAKE_BUILD_TYPE
 3. Configure Build command, _Project > properties > C/C++ Build > Build command_ ```make -j 4```. Set Build directory to ```/home/aware/Desktop/gromacs_fhmd_debug``` (or `${workspace_loc:/gromacs/debug}`). Set working directory in tab Arguments to  ```/home/aware/Desktop``` (the path where all the *gmx* files are).
 4. Debug configuration, set _C/C++ Application_ path to ```/home/aware/Desktop/gromacs_fhmd_debug/bin/gmx``` with arguments ```mdrun -nt 1```. Set working directory in tab Arguments to  ```/home/aware/Desktop``` (the path where all the *gmx* files are).
 
+# Test and Debug
+
+The initial conditions are in file `conf.gro`. To select the file we should use the folowing commands
+
+```bash
+gmx grompp -c conf8.gro -p topol8.top
+gmx mdrun -ntomp 1 -c conf8.gro -p topol8.top
+```
 
 # Besides
 
@@ -65,8 +73,6 @@ Optional: avoid upgrade gdb with
 ```bash
 brew pin gdb
 ```
-
-## Signing `gdb`
 
 # Credits
 Ivan Korotkin
