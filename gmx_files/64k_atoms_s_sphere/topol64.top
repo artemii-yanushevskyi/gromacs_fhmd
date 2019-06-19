@@ -1,0 +1,30 @@
+[ defaults ]
+; nbfunc    comb-rule   gen-pairs   fudgeLJ fudgeQQ
+; 1         1           no          1.0     1.0
+  1         3           yes         0.5     0.5                         ; OPLS-AA opls_097 force field
+
+
+[ atomtypes ]
+; name  at.num   mass      charge  ptype    c6            c12           <= comb-rule 1
+; name  at.num   mass      charge  ptype    sigma         epsilon       <= comb-rule 2
+; Ar    18       0.000     0.000     A      0.0062647225  9.847044e-06
+  Ar    18       39.948    0.000     A      3.40100e-01   9.78638e-01   ; OPLS-AA opls_097 force field
+
+
+[ moleculetype ]
+; name  nrexcl
+  Ar      1
+
+
+[ atoms ]
+;   nr  type    resnr   residu  atom    cgnr    charge    mass
+;   1   Ar        1       Ar     Ar      1      0.0000    39.95
+    1   Ar        1       Ar     Ar      1      0.0000    39.948        ; OPLS-AA opls_097 force field
+
+
+[ system ]
+Liquid Argon
+
+
+[ molecules ]
+Ar    64000

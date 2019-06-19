@@ -7,15 +7,14 @@ debug
 dump_*txt
 *.edr
 *.log
-*.top
+log.txt
+*.gro
 *.tpr
 *.xtc
 \#*\#
 *.xvg
 *.cpt
-*.gro
 *.save
-coupling_out.prm
 /Default/
 *.csv
 *.csv

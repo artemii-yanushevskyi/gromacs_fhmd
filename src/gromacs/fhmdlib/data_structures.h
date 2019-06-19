@@ -59,6 +59,9 @@ typedef struct FH_arrays                    /* FH/MD arrays */
     double      second_top;
     double      second_bottom;
 
+    double numerator[4];
+    double denominator[2];
+    double numerator_complete;
 } FH_arrays;
 
 

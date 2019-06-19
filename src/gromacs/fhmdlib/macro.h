@@ -26,6 +26,7 @@
 #define IL      I(indL, fh->N)
 
 #define SUM(f)  (f[0] + f[1] + f[2])
+#define SUM4(f)  (f[0] + f[1] + f[2] + f[3])
 
 #define ASSIGN_IND(ind, i, j, k) \
     ind[0] = i; \
