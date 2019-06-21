@@ -19,3 +19,5 @@ log.txt
 *.csv
 *.csv
 gmx_files/.ipynb_checkpoints/Graphs for Beta coef-checkpoint.ipynb
+gmx_files/approximately_8k_atoms_from_64k_atoms/log.txt
+gmx_files/approximately_8k_atoms_from_64k_atoms/.~lock.beta_values.csv#

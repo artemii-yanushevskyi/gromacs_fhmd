@@ -9,6 +9,14 @@
 #include <iostream> // to write out to files
 using namespace std;
 
+bool writing_condition(int step)
+{
+	if (step % 200 == 0)
+		return true;
+	else
+		return false;
+}
+
 void fhmd_do_update_md(int start, int nrend,
                        double dt, int nstpcouple,
                        t_grp_tcstat *tcstat,
@@ -44,7 +52,9 @@ void fhmd_do_update_md(int start, int nrend,
 
     ofstream ofs;
 
-    int start_output = 0; //4720;
+//    printf("Counting %d atoms....\n", nrend - start);
+
+
 
     if (fh->step_MD == 0)
 	{
@@ -55,21 +65,11 @@ void fhmd_do_update_md(int start, int nrend,
 		ofs << "atoms ";
 		ofs << start << nrend;
 		ofs << "\n start to output on ";
-		ofs << start_output;
-		ofs << "step";
+		ofs << "step\n alpha = " << fh->alpha;
+
 		ofs << "\n";
 		ofs.close();
 
-//		ofs.open("ro_values.csv", std::ofstream::out);
-//		ofs << "Step";
-//		for(i = start; i < fh->Ntot; i++)
-//		{
-//			ofs << ",";
-//			ofs << i;
-//		}
-//		ofs << "\n";
-//		ofs.close();
-//
 		ofs.open("beta_values.csv", std::ofstream::out);
 		ofs << "Step";
 		for(i = start; i < nrend; i++)
@@ -110,9 +110,15 @@ void fhmd_do_update_md(int start, int nrend,
 		ofs << "\n";
 		ofs.close();
 
+		ofs.open("numerator.csv", std::ofstream::out);
+		ofs << "step";
+		ofs << "0,1,2,3,4,0,1";
+		ofs << "\n";
+		ofs.close();
+
 	}
 
-    if (fh->step_MD >= start_output)
+    if (writing_condition(fh->step_MD))
     {
 		ofs.open("a_coef.csv", std::ofstream::out | std::ofstream::app);
 		ofs << fh->step_MD;
@@ -129,6 +135,10 @@ void fhmd_do_update_md(int start, int nrend,
 		ofs.open("beta_values.csv", std::ofstream::out | std::ofstream::app);
 		ofs << fh->step_MD;
 		ofs.close();
+
+		ofs.open("numerator.csv", std::ofstream::out | std::ofstream::app);
+		ofs << fh->step_MD;
+		ofs.close();
     }
 
     // adding new logic
@@ -143,6 +153,8 @@ void fhmd_do_update_md(int start, int nrend,
         arr[ind].denominator[1] = 0;
     }
 
+    double mean = 0, min = 1000, max = -1000;
+
     if(1)
     {
 
@@ -154,7 +166,7 @@ void fhmd_do_update_md(int start, int nrend,
 
             ind      = fh->ind[n]; // index of cell containing atom n
 
-    	    if (fh->step_MD >= start_output)
+    	    if (writing_condition(fh->step_MD))
     	    {
         		ofs.open("atom_cell.csv", std::ofstream::out | std::ofstream::app);
         		ofs << ",";
@@ -206,14 +218,14 @@ void fhmd_do_update_md(int start, int nrend,
             // numerator 2, without alpha
             for (d = 0; d < DIM; d++)
             {
-            	component[d] = (1.0/arr[ind].ppm) * (v[n][d]/invmass[n]) * arr[ind].inv_ro * (arr[ind].alpha_term[d]/fh->alpha);
+            	component[d] = (1.0/arr[ind].ppm) * (v[n][d]/invmass[n]) * arr[ind].inv_ro * (arr[ind].alpha_term[d]);
             }
             arr[ind].numerator[2] += SUM(component);
 
             // numerator 3, without alpha
             for (d = 0; d < DIM; d++)
             {
-            	component[d] = -(1.0/arr[ind].ppm) * f[n][d] * S * (1 - S) * arr[ind].grad_ro[d]/fh->alpha * arr[ind].inv_ro;
+            	component[d] = -(1.0/arr[ind].ppm) * f[n][d] * S * (1 - S) * arr[ind].grad_ro[d] * arr[ind].inv_ro;
             }
             arr[ind].numerator[3] += SUM(component);
 
@@ -226,13 +238,13 @@ void fhmd_do_update_md(int start, int nrend,
                 sum_uro_without_p[d] = 0;
                 for(int k = start; k < nrend; k++)
                 {
-                    if ((k == n) ) continue;
+                    if ((k == n) or (ind != fh->ind[k])) continue;
                     sum_uro_without_p[d] += v[k][d] * (1.0/invmass[k]) * fh->grid.ivol[ind];
                 }
 
                 pr_v[d] = arr[ind].u_fh[d] * arr[ind].ro_fh - sum_uro_without_p[d];
 
-                component[d] = -(1.0/arr[ind].ppm) * (v[n][d]/invmass[n]) * S * (1 - S) * pr_v[d] / arr[ind].inv_ro;
+                component[d] = -(1.0/arr[ind].ppm) * (v[n][d]/invmass[n]) * S * (1 - S) * pr_v[d] * arr[ind].inv_ro;
             }
 
             arr[ind].denominator[1] += SUM(component);
@@ -240,7 +252,13 @@ void fhmd_do_update_md(int start, int nrend,
 
         for (int ind = 0; ind < fh->Ntot; ind++)
         {
-            arr[ind].numerator_complete = arr[ind].numerator[0] + arr[ind].numerator[1] + fh->alpha*(arr[ind].numerator[2] + arr[ind].numerator[3]);
+        	if (fh->step_MD % 500)
+        	{
+        		ofs.open("numerator.csv", std::ofstream::out | std::ofstream::app);
+        		ofs << "," << arr[ind].numerator[0] << "," << arr[ind].numerator[1] << "," << arr[ind].numerator[2] << "," << arr[ind].numerator[3] << "," << "\n";
+        		ofs.close();
+        	}
+
         }
 
         for (int n = start; n < nrend; n++) // 0, 1, 2, ... 7999
@@ -254,17 +272,35 @@ void fhmd_do_update_md(int start, int nrend,
 
             arr[ind].denominator[0] = SUM(component);
 
-            beta[n-start] = arr[ind].numerator_complete/(arr[ind].denominator[0] + arr[ind].denominator[1]);
+        	if (fh->step_MD % 500)
+        	{
+        		ofs.open("numerator.csv", std::ofstream::out | std::ofstream::app);
+        		ofs << "," << arr[ind].denominator[0] << "," << arr[ind].denominator[1] << "\n";
+        		ofs.close();
+        	}
 
             double a_coef = (arr[ind].numerator[2] + arr[ind].numerator[3])/(arr[ind].denominator[0] + arr[ind].denominator[1]);
             double b_coef = (arr[ind].numerator[0] + arr[ind].numerator[1])/(arr[ind].denominator[0] + arr[ind].denominator[1]);
 
-            if (beta[n-start] > 1000)
-            {
-            	printf("beta is too big %f", beta[n-start]);
-            }
+        	float alpha;
 
-            if(fh->step_MD >= start_output)
+        	if (a_coef > 0 and b_coef > 0)
+        		alpha = 50 + abs(b_coef);
+        	else
+        		if (a_coef < 0 and b_coef < 0)
+        			alpha = 0;
+        		else
+        			alpha = -a_coef*b_coef/(a_coef*a_coef + 1);
+
+
+            beta[n-start] = a_coef * alpha + b_coef;
+
+            if (max < beta[n-start]) max = beta[n-start];
+            if (min > beta[n-start]) min = beta[n-start];
+
+            mean += beta[n-start]/(nrend-start);
+
+            if(writing_condition(fh->step_MD))
             {
 				ofs.open("a_coef.csv", std::ofstream::out | std::ofstream::app);
 				ofs << ",";
@@ -286,12 +322,13 @@ void fhmd_do_update_md(int start, int nrend,
     } // if (1)
 
 
+
 	ofs.open("log.txt", std::ofstream::out | std::ofstream::app);
-	ofs << fh->step_MD;
+	ofs << fh->step_MD << "," << min << "," << mean << "," << max;
 	ofs << "\n";
 	ofs.close();
 
-    if(fh->step_MD >= start_output)
+    if(writing_condition(fh->step_MD))
     {
 		int i;
 
