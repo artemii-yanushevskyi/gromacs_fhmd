@@ -11,7 +11,7 @@ using namespace std;
 
 bool writing_condition(int step)
 {
-	if (step % 200 == 0)
+	if (step % 50 == 0)
 		return true;
 	else
 		return false;
@@ -49,6 +49,7 @@ void fhmd_do_update_md(int start, int nrend,
     const double g_eps = 1e-10;
 
     double beta[nrend - start]; // the array [0, 7999] = beta[8000]
+    double alpha[nrend - start]; // the array [0, 7999] = beta[8000]
 
     ofstream ofs;
 
@@ -71,6 +72,16 @@ void fhmd_do_update_md(int start, int nrend,
 		ofs.close();
 
 		ofs.open("beta_values.csv", std::ofstream::out);
+		ofs << "Step";
+		for(i = start; i < nrend; i++)
+		{
+			ofs << ",";
+			ofs << i;
+		}
+		ofs << "\n";
+		ofs.close();
+
+		ofs.open("alpha_values.csv", std::ofstream::out);
 		ofs << "Step";
 		for(i = start; i < nrend; i++)
 		{
@@ -133,6 +144,10 @@ void fhmd_do_update_md(int start, int nrend,
 		ofs.close();
 
 		ofs.open("beta_values.csv", std::ofstream::out | std::ofstream::app);
+		ofs << fh->step_MD;
+		ofs.close();
+
+		ofs.open("alpha_values.csv", std::ofstream::out | std::ofstream::app);
 		ofs << fh->step_MD;
 		ofs.close();
 
@@ -282,18 +297,30 @@ void fhmd_do_update_md(int start, int nrend,
             double a_coef = (arr[ind].numerator[2] + arr[ind].numerator[3])/(arr[ind].denominator[0] + arr[ind].denominator[1]);
             double b_coef = (arr[ind].numerator[0] + arr[ind].numerator[1])/(arr[ind].denominator[0] + arr[ind].denominator[1]);
 
-        	float alpha;
+        	float alph; // = 10;
+
 
         	if (a_coef > 0 and b_coef > 0)
-        		alpha = 50 + abs(b_coef);
+        	{
+        		alpha[n-start] = 50;
+        	}
+        	else if (a_coef < 0 and b_coef < 0)
+        	{
+    			alpha[n-start] = 0;
+        	}
         	else
-        		if (a_coef < 0 and b_coef < 0)
-        			alpha = 0;
-        		else
-        			alpha = -a_coef*b_coef/(a_coef*a_coef + 1);
+        	{
+        		alpha[n-start] = -a_coef*b_coef/(a_coef*a_coef + 1);
+        	}
 
 
-            beta[n-start] = a_coef * alpha + b_coef;
+
+//        	{
+//        		alpha = 50;
+//        		beta[n-start] = 10;
+//        	}
+
+            beta[n-start] = a_coef * alpha[n-start] + b_coef;
 
             if (max < beta[n-start]) max = beta[n-start];
             if (min > beta[n-start]) min = beta[n-start];
@@ -315,6 +342,11 @@ void fhmd_do_update_md(int start, int nrend,
 				ofs.open("beta_values.csv", std::ofstream::out | std::ofstream::app);
 				ofs << ",";
 				ofs << beta[n-start];
+				ofs.close();
+
+				ofs.open("alpha_values.csv", std::ofstream::out | std::ofstream::app);
+				ofs << ",";
+				ofs << alpha[n-start];
 				ofs.close();
             }
 
@@ -348,6 +380,9 @@ void fhmd_do_update_md(int start, int nrend,
 		ofs << "\n";
 		ofs.close();
 
+		ofs.open("alpha_values.csv", std::ofstream::out | std::ofstream::app);
+		ofs << "\n";
+		ofs.close();
     }
 
     if (bNH || bPR)
@@ -434,7 +469,8 @@ void fhmd_do_update_md(int start, int nrend,
                     if(fh->scheme == One_Way)
                     {
                         // vn           = lg*v[n][d] + (1 - S)*f[n][d]*w_dt + (S*f_fh[d] + alpha_term[d] + S*(1 - S)*beta_term[d])*invro_dt;
-                        vn           = lg*v[n][d] + (1 - S)*f[n][d]*w_dt + (S*f_fh[d] + alpha_term[d] + beta[n-start]*S*(1 - S)*beta_term[d])*invro_dt;
+//                        vn           = lg*v[n][d] + (1 - S)*f[n][d]*w_dt + (S*f_fh[d] + alpha_term[d] + beta[n-start]*S*(1 - S)*beta_term[d])*invro_dt;
+                        vn           = lg*v[n][d] + (1 - S)*f[n][d]*w_dt + (S*f_fh[d] + alpha[n-start]*alpha_term[d] + beta[n-start]*S*(1 - S)*beta_term[d])*invro_dt;
 
                         v[n][d]      = vn;
                         xprime[n][d] = x[n][d] + ((1 - S)*vn + S*u_fh[d])*dt + S*(1 - S)*grad_ro[d]*invro_dt;
