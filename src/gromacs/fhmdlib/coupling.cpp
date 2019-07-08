@@ -15,6 +15,9 @@ void fhmd_update_MD_in_FH(rvec x[], rvec v[], real mass[], rvec f[], int N_atoms
     {
         arr[i].ro_md   = 0;
         arr[i].ro_md_s = 0;
+        // new code start
+        arr[i].ppm     = 0;
+        // new code end
 
         for(int d = 0; d < DIM; d++)
         {
@@ -56,6 +59,17 @@ void fhmd_update_MD_in_FH(rvec x[], rvec v[], real mass[], rvec f[], int N_atoms
             arr[ind].uro_md[d]   += v[n][d]*mass[n];
             arr[ind].uro_md_s[d] += (1 - S)*v[n][d]*mass[n];
         }
+
+        // new code start
+        rvec ppm_product;
+
+        for(int d = 0; d < DIM; d++)
+        {
+            ppm_product[d] = mass[n] * v[n][d] * v[n][d];
+        }
+
+        arr[ind].ppm += SUM(ppm_product);
+        // new code end
     }
 
     /* Update statistics */
@@ -148,7 +162,10 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
 //                      arr[C].beta_term[d] = fh->beta*arr[C].mn_prime[d];
                     arr[C].delta_ro = arr[C].ro_fh - arr[C].ro_md;                                          // Layer n may work better than n+1/2
                     for(int d = 0; d < DIM; d++)
-                        arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);    // Layer n may work better than n+1/2
+                    	if(fh->alpha_beta_calculations)
+                    		arr[C].beta_term[d] = (arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);    // Layer n may work better than n+1/2
+                    	else
+                    		arr[C].beta_term[d] = fh->beta*(arr[C].u_fh[d]*arr[C].ro_fh - arr[C].uro_md[d]);    // Layer n may work better than n+1/2
 
                     if(fh->grid.md[C] == FH_zone) arr[C].delta_ro = 0;
                 }
@@ -166,8 +183,17 @@ void fhmd_calculate_MDFH_terms(FHMD *fh)
 
                 for(int d = 0; d < DIM; d++)
                 {
-                    arr[Cm].grad_ro[d] = fh->alpha*(arr[CRm].delta_ro - arr[CLm].delta_ro)/(0.5*(fh->grid.h[CLm][d] + 2.0*fh->grid.h[Cm][d] + fh->grid.h[CRm][d]));
-
+                	// new code start
+                	if(fh->alpha_beta_calculations)
+                		arr[Cm].grad_ro[d] = fh->alpha*(arr[CRm].delta_ro - arr[CLm].delta_ro)/(0.5*(fh->grid.h[CLm][d] + 2.0*fh->grid.h[Cm][d] + fh->grid.h[CRm][d]));
+                	else
+                		arr[Cm].grad_ro[d] =           (arr[CRm].delta_ro - arr[CLm].delta_ro)/(0.5*(fh->grid.h[CLm][d] + 2.0*fh->grid.h[Cm][d] + fh->grid.h[CRm][d]));
+                	// what is affected if we do alpha and beta calculations?
+                	// - grad_ro
+                	// - alpha_u_grad
+                	// - alpha_term
+                	// - beta_term
+                	// new code end
                     for(int du = 0; du < DIM; du++)
                         arr[Cm].alpha_u_grad[du][d] = arr[Cm].grad_ro[d]*arr[Cm].S*(1 - arr[Cm].S)*arr[Cm].u_md[du];    // TODO: Fast but rough estimation!
                 }

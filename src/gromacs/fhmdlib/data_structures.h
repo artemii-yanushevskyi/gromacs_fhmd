@@ -51,6 +51,13 @@ typedef struct FH_arrays                    /* FH/MD arrays */
 
     double      ro_md_s, ros_md, ropr_md;           /* sources of MD density */
     dvec        uro_md_s, uros_md, uropr_md;        /* sources of MD momentum */
+
+    // new code start
+    double numerator[4];
+    double denominator[2];
+    double ppm;
+    // new code end
+
 } FH_arrays;
 
 
@@ -132,6 +139,10 @@ typedef struct FHMD
     double      dt_FH;          /* FH time step */
     double      std_rho;        /* Analytical STD of density */
     double      std_u;          /* Analytical STD of velocity */
+
+    // new code start
+    const bool alpha_beta_calculations = true;
+    // new code end
 } FHMD;
 
 #endif /* FHMD_DATA_STRUCTURES_H_ */
